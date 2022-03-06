@@ -1,0 +1,306 @@
+正在比较文件 gridding.cu 和 ./HCGRID/GRIDDING.CU
+***** gridding.cu
+// author                 :
+// last editor            :xuweiyi
+//
+***** ./HCGRID/GRIDDING.CU
+// author                 :
+//
+*****
+
+***** gridding.cu
+
+#define stream_size 4
+cudaStream_t stream[stream_size];
+int stream_index[stream_size*2];
+int offset_for_output;
+int offset_for_input;
+
+double *d_lons;
+***** ./HCGRID/GRIDDING.CU
+
+double *d_lons;
+*****
+
+***** gridding.cu
+    swap(h_lats, tempArray);
+    for(int i=0; i < data_shape; ++i){  
+        tempArray[i] = h_data[V[i].inx];
+***** ./HCGRID/GRIDDING.CU
+    swap(h_lats, tempArray);
+    for(int i=0; i < data_shape; ++i){
+        tempArray[i] = h_data[V[i].inx];
+*****
+
+***** gridding.cu
+    double iTime6 = cpuSecond();
+//    printf("%f, ", (iTime6 - iTime1) * 1000.);
+//    printf("%f, %f, %f\n", (iTime3 - iTime2) * 1000., (iTime5 - iTime4) * 1000., (iTime6 - iTime1) * 1000.);
+***** ./HCGRID/GRIDDING.CU
+    double iTime6 = cpuSecond();
+    printf("%f, ", (iTime6 - iTime1) * 1000.);
+//    printf("%f, %f, %f\n", (iTime3 - iTime2) * 1000., (iTime5 - iTime4) * 1000., (iTime6 - iTime1) * 1000.);
+*****
+
+***** gridding.cu
+    for(int i=0; i < data_shape; ++i){
+        tempArray[i] = h_data[in_inx[i]];锛岋紝锛岋紝
+    }
+***** ./HCGRID/GRIDDING.CU
+    for(int i=0; i < data_shape; ++i){
+        tempArray[i] = h_data[in_inx[i]];
+    }
+*****
+
+***** gridding.cu
+        uint32_t right = left + d_const_GMaps.factor - 1;
+        //printf("d_const_GMaps.factor=%d\n",d_const_GMaps.factor );
+        if (right >= d_const_zyx[1]) {
+***** ./HCGRID/GRIDDING.CU
+        uint32_t right = left + d_const_GMaps.factor - 1;
+        if (right >= d_const_zyx[1]) {
+*****
+
+***** gridding.cu
+        }
+        // get northeast ring and southeast ring
+***** ./HCGRID/GRIDDING.CU
+        }
+
+        // get northeast ring and southeast ring
+*****
+
+***** gridding.cu
+        for (tid = left; tid <= right; ++tid) {
+            d_datacube[tid] = tep_data[tid-left];
+            d_weightscube[tid] = temp_weights[tid-left];
+***** ./HCGRID/GRIDDING.CU
+        for (tid = left; tid <= right; ++tid) {
+            d_datacube[tid] = temp_data[tid-left];
+            d_weightscube[tid] = temp_weights[tid-left];
+*****
+
+***** gridding.cu
+/* Send data from CPU to GPU. */
+void data_h2d(uint32_t index){
+    // uint32_t data_shape = h_GMaps.data_shape;
+    // uint32_t usedrings = h_Healpix.usedrings;
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    
+    int tmp_index=index*2;
+    int start=stream_index[tmp_index];
+    int length=stream_index[tmp_index+1]-stream_index[tmp_index]+1;
+
+***** ./HCGRID/GRIDDING.CU
+/* Send data from CPU to GPU. */
+void data_h2d(){
+    uint32_t data_shape = h_GMaps.data_shape;
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2];
+    uint32_t usedrings = h_Healpix.usedrings;
+
+*****
+
+***** gridding.cu
+    // Copy constants memory
+    HANDLE_ERROR(cudaMemcpyAsync(d_lons+start, h_lons+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_lats+start, h_lats+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_data+start, h_data+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weights+start, h_weights+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index])
+);
+    HANDLE_ERROR(cudaMemcpyAsync(d_xwcs+index*num, h_xwcs+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]))
+;
+    HANDLE_ERROR(cudaMemcpyAsync(d_ywcs+index*num,h_ywcs+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_datacube+index*num, h_datacube+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[
+index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weightscube+index*num, h_weightscube+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,s
+tream[index]));
+
+    HANDLE_ERROR(cudaMemcpyToSymbol(d_const_kernel_params, h_kernel_params, sizeof(double)*3));
+***** ./HCGRID/GRIDDING.CU
+    // Copy constants memory
+    HANDLE_ERROR(cudaMemcpy(d_lons, h_lons, sizeof(double)*data_shape, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_lats, h_lats, sizeof(double)*data_shape, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_data, h_data, sizeof(double)*data_shape, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_weights, h_weights, sizeof(double)*data_shape, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_xwcs, h_xwcs, sizeof(double)*num, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_ywcs,h_ywcs, sizeof(double)*num, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_datacube, h_datacube, sizeof(double)*num, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_weightscube, h_weightscube, sizeof(double)*num, cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_hpx_idx, h_hpx_idx, sizeof(uint64_t)*(data_shape+1), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_start_ring, h_start_ring, sizeof(uint32_t)*(usedrings+1), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpyToSymbol(d_const_kernel_params, h_kernel_params, sizeof(double)*3));
+*****
+
+***** gridding.cu
+/* Send data from GPU to CPU. */
+void data_d2h(uint32_t index){
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    HANDLE_ERROR(cudaMemcpyAsync(h_datacube+index*num, d_datacube+index*num, sizeof(double)*num, cudaMemcpyDeviceToHost,stream[
+index]));
+    HANDLE_ERROR(cudaMemcpyAsync(h_weightscube+index*num, d_weightscube+index*num, sizeof(double)*num, cudaMemcpyDeviceToHost,s
+tream[index]));
+}
+***** ./HCGRID/GRIDDING.CU
+/* Send data from GPU to CPU. */
+void data_d2h(){
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2];
+    HANDLE_ERROR(cudaMemcpy(h_datacube, d_datacube, sizeof(double)*num, cudaMemcpyDeviceToHost));
+    HANDLE_ERROR(cudaMemcpy(h_weightscube, d_weightscube, sizeof(double)*num, cudaMemcpyDeviceToHost));
+}
+*****
+
+***** gridding.cu
+
+    //calculate sphere_radius for streaming
+    int offset=h_zyx[1]*h_zyx[2]/stream_size;
+    double l1,b1,l2,b2,dis;
+    int index=0;
+    for(int i=0;i<h_zyx[1]*h_zyx[2];i+=offset){
+        l1=h_xwcs[i]*DEG2RAD;
+        b1=h_ywcs[i]*DEG2RAD;
+        int min_coord=h_GMaps.data_shape,max_coord=0;
+        for(int j=0;j<h_GMaps.data_shape;j++){
+            l2=h_lons[j]*DEG2RAD;
+            b2=h_lats[j]*DEG2RAD;
+            dis = true_angular_distance(l1,b1,l2,b2)*RAD2DEG;
+            if(dis < h_GMaps.sphere_radius){
+                  if(j>max_coord){max_coord=j;}
+            }
+        }
+        l1=h_xwcs[i+offset-1]*DEG2RAD;
+        b1=h_ywcs[i+offset-1]*DEG2RAD;
+        for(int j=0;j<h_GMaps.data_shape;j++){
+            l2=h_lons[j]*DEG2RAD;
+            b2=h_lats[j]*DEG2RAD;
+            dis=true_angular_distance(l1,b1,l2,b2)*RAD2DEG;
+            if(dis<h_GMaps.sphere_radius){
+                if(j<min_coord){min_coord=j;}
+            }
+        }
+        stream_index[index++]=min_coord;
+        stream_index[index++]=max_coord;
+    }    
+
+    double iTime3 = cpuSecond();
+***** ./HCGRID/GRIDDING.CU
+
+    double iTime3 = cpuSecond();
+*****
+
+***** gridding.cu
+    double iTime4 = cpuSecond();
+
+***** ./HCGRID/GRIDDING.CU
+    double iTime4 = cpuSecond();
+    // Send data from CPU to GPU.
+    data_h2d();
+    printf("h_zyx[1]=%d, h_zyx[2]=%d, ", h_zyx[1], h_zyx[2]);
+
+*****
+
+***** gridding.cu
+    printf("grid.x=%d, block.x=%d, ", grid.x, block.x);
+    printf("h_zyx[1]=%d, h_zyx[2]=%d, data_shape=%d, data_spec=%d,sphere_radius=%f\n", h_zyx[1], h_zyx[2], h_GMaps.data_shape, 
+h_GMaps.spec_dim,h_GMaps.sphere_radius);
+    
+    //create stream
+    for(int i=0;i<stream_size;i++){
+        cudaStreamCreate(&stream[i]);
+    }
+***** ./HCGRID/GRIDDING.CU
+    printf("grid.x=%d, block.x=%d, ", grid.x, block.x);
+
+    // Get start time.
+    cudaEvent_t start, stop;
+    HANDLE_ERROR(cudaEventCreate(&start));
+    HANDLE_ERROR(cudaEventCreate(&stop));
+    HANDLE_ERROR(cudaEventRecord(start, 0));
+
+    // Call device kernel.
+    hcgrid<<< grid, block >>>(d_lons, d_lats, d_data, d_weights, d_xwcs, d_ywcs, d_datacube, d_weightscube, d_hpx_idx);
+
+    // Get stop time.
+    HANDLE_ERROR(cudaEventRecord(stop, 0));
+    HANDLE_ERROR(cudaEventSynchronize(stop));
+    float elapsedTime;
+    HANDLE_ERROR(cudaEventElapsedTime(&elapsedTime, start, stop));
+    printf("kernel elapsed time=%f, ", elapsedTime);
+
+    // Send data from GPU to CPU
+    data_d2h();
+
+    // Write output FITS file
+    write_output_map(outfile);
+
+    // Write sorted input FITS file
+    if (sortfile) {
+        write_ordered_map(infile, sortfile);
+    }
+*****
+
+***** gridding.cu
+
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    uint32_t usedrings = h_Healpix.usedrings;
+    HANDLE_ERROR(cudaMemcpy(d_hpx_idx, h_hpx_idx, sizeof(uint64_t)*(h_GMaps.data_shape+1), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_start_ring, h_start_ring, sizeof(uint32_t)*(usedrings+1), cudaMemcpyHostToDevice));
+
+***** ./HCGRID/GRIDDING.CU
+
+    // Release data
+    data_free();
+    HANDLE_ERROR( cudaEventDestroy(start) );
+    HANDLE_ERROR( cudaEventDestroy(stop) );
+    HANDLE_ERROR( cudaDeviceReset() );
+
+    double iTime5 = cpuSecond();
+    double iElaps = (iTime5 - iTime1) * 1000.;
+    printf("solving_gridding time=%f\n", iElaps);
+}
+
+*****
+
+***** gridding.cu
+    //cuda stream
+    for(uint32_t i=0;i<stream_size;i++){
+        
+        // int tmp_index=i*2;
+        // offset_for_input=stream_index[tmp_index];
+        // offset_for_output=i*num;
+
+        //host to device  
+        data_h2d(i);
+        //kernel
+        hcgrid<<< grid, block, 0, stream[i] >>>(d_lons, d_lats, d_data, d_weights, d_xwcs, d_ywcs, d_datacube, d_weightscube, d
+_hpx_idx);
+        //device to host
+        data_d2h(i);
+
+    }
+    cudaDeviceSynchronize();
+
+    //destroy stream
+    for(int i=0;i<stream_size;i++){
+        cudaStreamDestroy(stream[i]);
+    }
+
+    // Write output FITS file
+    write_output_map(outfile);
+
+    // Write sorted input FITS file
+    if (sortfile) {
+        write_ordered_map(infile, sortfile);
+    }
+
+    // Release data
+    data_free();
+    HANDLE_ERROR( cudaDeviceReset() );
+
+    double iTime5 = cpuSecond();
+    double iElaps = (iTime5 - iTime1) * 1000.;
+    printf("solving_gridding time=%f\n", iElaps);
+}
+
+***** ./HCGRID/GRIDDING.CU
+*****
+

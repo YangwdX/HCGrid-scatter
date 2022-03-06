@@ -1,0 +1,192 @@
+正在比较文件 gridding.cu1 和 GRIDDING.CU2
+***** gridding.cu1
+cudaStream_t stream[stream_size];
+int stream_index[stream_size*2];
+int offset_for_output;
+int offset_for_input;
+
+***** GRIDDING.CU2
+cudaStream_t stream[stream_size];
+
+*****
+
+***** gridding.cu1
+    for(int i=0; i < data_shape; ++i){
+        tempArray[i] = h_data[in_inx[i]];锛岋紝锛岋紝
+    }
+***** GRIDDING.CU2
+    for(int i=0; i < data_shape; ++i){
+        tempArray[i] = h_data[in_inx[i]];
+    }
+*****
+
+***** gridding.cu1
+        for (tid = left; tid <= right; ++tid) {
+            d_datacube[tid] = tep_data[tid-left];
+            d_weightscube[tid] = temp_weights[tid-left];
+***** GRIDDING.CU2
+        for (tid = left; tid <= right; ++tid) {
+            d_datacube[tid] = temp_data[tid-left];
+            d_weightscube[tid] = temp_weights[tid-left];
+*****
+
+***** gridding.cu1
+void data_h2d(uint32_t index){
+    // uint32_t data_shape = h_GMaps.data_shape;
+    // uint32_t usedrings = h_Healpix.usedrings;
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    
+    int tmp_index=index*2;
+    int start=stream_index[tmp_index];
+    int length=stream_index[tmp_index+1]-stream_index[tmp_index]+1;
+
+    // Copy constants memory
+    HANDLE_ERROR(cudaMemcpyAsync(d_lons+start, h_lons+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_lats+start, h_lats+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_data+start, h_data+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weights+start, h_weights+start, sizeof(double)*length, cudaMemcpyHostToDevice,stream[index])
+);
+    HANDLE_ERROR(cudaMemcpyAsync(d_xwcs+index*num, h_xwcs+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]))
+;
+    HANDLE_ERROR(cudaMemcpyAsync(d_ywcs+index*num,h_ywcs+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_datacube+index*num, h_datacube+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,stream[
+index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weightscube+index*num, h_weightscube+index*num, sizeof(double)*num, cudaMemcpyHostToDevice,s
+tream[index]));
+
+    HANDLE_ERROR(cudaMemcpyToSymbol(d_const_kernel_params, h_kernel_params, sizeof(double)*3));
+***** GRIDDING.CU2
+void data_h2d(uint32_t index){
+    uint32_t data_shape = h_GMaps.data_shape/stream_size;
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    uint32_t off1 = data_shape * (stream_size-1-index);
+    uint32_t off2 = num * index;
+    
+    uint32_t expand = num / 10;
+    if(index == 0){
+        num+=expand;
+    }else if(index == stream_size-1){
+        num+=expand;
+        off2-=expand;
+    }else{
+        num=num+2*expand;
+        off2-=expand;
+    }
+    printf("off2:%d,num:%d\n",off2,num);
+    // Copy constants memory
+    HANDLE_ERROR(cudaMemcpyAsync(d_lons+off1, h_lons+off1, sizeof(double)*data_shape, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_lats+off1, h_lats+off1, sizeof(double)*data_shape, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_data+off1, h_data+off1, sizeof(double)*data_shape, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weights+off1, h_weights+off1, sizeof(double)*data_shape, cudaMemcpyHostToDevice,stream[index
+]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_xwcs+off2, h_xwcs+off2, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_ywcs+off2,h_ywcs+off2, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_datacube+off2, h_datacube+off2, sizeof(double)*num, cudaMemcpyHostToDevice,stream[index]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_weightscube+off2, h_weightscube+off2, sizeof(double)*num, cudaMemcpyHostToDevice,stream[inde
+x]));
+    HANDLE_ERROR(cudaMemcpyAsync(d_hpx_idx+off1, h_hpx_idx+off1, sizeof(uint64_t)*(data_shape+1), cudaMemcpyHostToDevice,stream
+[index]));
+    HANDLE_ERROR(cudaMemcpyToSymbol(d_const_kernel_params, h_kernel_params, sizeof(double)*3));
+*****
+
+***** gridding.cu1
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    HANDLE_ERROR(cudaMemcpyAsync(h_datacube+index*num, d_datacube+index*num, sizeof(double)*num, cudaMemcpyDeviceToHost,stream[
+index]));
+    HANDLE_ERROR(cudaMemcpyAsync(h_weightscube+index*num, d_weightscube+index*num, sizeof(double)*num, cudaMemcpyDeviceToHost,s
+tream[index]));
+}
+***** GRIDDING.CU2
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    uint32_t offset = num * index;
+    HANDLE_ERROR(cudaMemcpyAsync(h_datacube+offset, d_datacube+offset, sizeof(double)*num, cudaMemcpyDeviceToHost,stream[index]
+));
+    HANDLE_ERROR(cudaMemcpyAsync(h_weightscube+offset, d_weightscube+offset, sizeof(double)*num, cudaMemcpyDeviceToHost,stream[
+index]));
+}
+*****
+
+***** gridding.cu1
+
+    //calculate sphere_radius for streaming
+    int offset=h_zyx[1]*h_zyx[2]/stream_size;
+    double l1,b1,l2,b2,dis;
+    int index=0;
+    for(int i=0;i<h_zyx[1]*h_zyx[2];i+=offset){
+        l1=h_xwcs[i]*DEG2RAD;
+        b1=h_ywcs[i]*DEG2RAD;
+        int min_coord=h_GMaps.data_shape,max_coord=0;
+        for(int j=0;j<h_GMaps.data_shape;j++){
+            l2=h_lons[j]*DEG2RAD;
+            b2=h_lats[j]*DEG2RAD;
+            dis = true_angular_distance(l1,b1,l2,b2)*RAD2DEG;
+            if(dis < h_GMaps.sphere_radius){
+                  if(j>max_coord){max_coord=j;}
+            }
+        }
+        l1=h_xwcs[i+offset-1]*DEG2RAD;
+        b1=h_ywcs[i+offset-1]*DEG2RAD;
+        for(int j=0;j<h_GMaps.data_shape;j++){
+            l2=h_lons[j]*DEG2RAD;
+            b2=h_lats[j]*DEG2RAD;
+            dis=true_angular_distance(l1,b1,l2,b2)*RAD2DEG;
+            if(dis<h_GMaps.sphere_radius){
+                if(j<min_coord){min_coord=j;}
+            }
+        }
+        stream_index[index++]=min_coord;
+        stream_index[index++]=max_coord;
+    }    
+
+    double iTime3 = cpuSecond();
+***** GRIDDING.CU2
+
+    double iTime3 = cpuSecond();
+*****
+
+***** gridding.cu1
+    }
+
+    uint32_t num = h_zyx[0] * h_zyx[1] * h_zyx[2]/stream_size;
+    uint32_t usedrings = h_Healpix.usedrings;
+    HANDLE_ERROR(cudaMemcpy(d_hpx_idx, h_hpx_idx, sizeof(uint64_t)*(h_GMaps.data_shape+1), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_start_ring, h_start_ring, sizeof(uint32_t)*(usedrings+1), cudaMemcpyHostToDevice));
+
+    //cuda stream
+***** GRIDDING.CU2
+    }
+    
+    //HANDLE_ERROR(cudaMemcpy(d_hpx_idx, h_hpx_idx, sizeof(uint64_t)*(h_GMaps.data_shape+1), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(d_start_ring, h_start_ring, sizeof(uint32_t)*(h_Healpix.usedrings+1), cudaMemcpyHostToDevice));
+    //HANDLE_ERROR(cudaMemcpy(d_lons, h_lons, sizeof(double)*h_GMaps.data_shape, cudaMemcpyHostToDevice));
+    //HANDLE_ERROR(cudaMemcpy(d_lats, h_lats, sizeof(double)*h_GMaps.data_shape, cudaMemcpyHostToDevice));
+    //HANDLE_ERROR(cudaMemcpy(d_data, h_data, sizeof(double)*h_GMaps.data_shape, cudaMemcpyHostToDevice));
+    //HANDLE_ERROR(cudaMemcpy(d_weights, h_weights, sizeof(double)*h_GMaps.data_shape, cudaMemcpyHostToDevice));
+    //cuda stream
+*****
+
+***** gridding.cu1
+    for(uint32_t i=0;i<stream_size;i++){
+        
+        // int tmp_index=i*2;
+        // offset_for_input=stream_index[tmp_index];
+        // offset_for_output=i*num;
+
+        //host to device  
+        data_h2d(i);
+***** GRIDDING.CU2
+    for(uint32_t i=0;i<stream_size;i++){
+
+        //host to device
+        data_h2d(i);
+*****
+
+***** gridding.cu1
+        data_d2h(i);
+
+    }
+***** GRIDDING.CU2
+        data_d2h(i);
+    }
+*****
+
